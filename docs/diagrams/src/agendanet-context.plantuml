@@ -1,0 +1,39 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+LAYOUT_LANDSCAPE()
+
+title AgendaNet Core
+
+AddRelTag("async", $lineStyle = DashedLine())
+
+Person(usuario, "Usuário", "Solicita o agendamento de consulta")
+
+System_Boundary(agendanet_frontend, "AgendaNet Frontend"){
+Container(aplicacao_web, "Aplicação Web", "React", "Aplicação Web que provê a interface de novos agendamentos")
+Container(mobile, "Aplicação Mobile", "Ionic (Angular)", "Aplicação Mobile que provê a interface de novos agendamentos")
+
+Rel(usuario, aplicacao_web, "Realiza agendamento em", "HTTPS")
+Rel(usuario, mobile, "Realiza agendamento em", "HTTPS")
+}
+
+System_Boundary(agendanet_backend, "AgendaNet Backend"){
+Container(bff, "BFF", "PHP", "Recebe a solicitação de agendamento do frontend")
+Container(backend, "Backend", "PHP", "Recebe a solicitação de agendamento do bff")
+Container(processador, "Processador de agendamento", "PHP", "Processa o agendamento: aprovando ou rejeitando")
+Container(notificador, "Sistema notificador sobre o agendamento", "PHP", "Notifica o usuário sobre a solicitação de agendamento")
+ContainerDb(mysql_backend,"Banco de dados","MySQL","Armazena as solicitações de agendamento")
+ContainerDb(mysql_processador,"Banco de dados","MySQL","Armazena o resultado das solicitações de agendamento")
+
+Rel(aplicacao_web, bff, "Realiza agendamento em", "HTTPS/JSON")
+Rel(mobile, bff, "Realiza agendamento em", "HTTPS/JSON")
+Rel(bff, backend, "Envia solicitação de agendamento para", "HTTPS/JSON")
+Rel(backend, processador, "Envia solicitação de agendamento para", "Através do Kafka pelo tópico scheduling", $tags = "async")
+Rel(backend, mysql_backend, "Recebe dados da solicitação do agendamento", "MySQL Protocol")
+Rel(processador, notificador, "Envia resultado do agendamento para", "Através do Kafka pelo tópico scheduling_result", $tags = "async")
+Rel(processador, mysql_processador, "Recebe dados do resultado do agendamento", "MySQL Protocol")
+Rel(notificador, usuario, "Envia notificação com o resultado do agendamento para", "PUSH/EMAIL")
+}
+
+@enduml
